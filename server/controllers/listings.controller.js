@@ -1,18 +1,3 @@
-// Controller for /api/listings - reads req.query / req.params, validates, calls the DAL,
-// sets the status code and sends JSON. No SQL here.
-//
-// Step 2: getListings(req, res)
-//   - read neighbourhood, roomType, minPrice, maxPrice, sort, limit from req.query
-//   - validate: limit (default 20, max 50), minPrice/maxPrice are numbers, sort is "price" or "rating"
-//     (anything else -> 400 { error })
-//   - map sort to a column name here: ORDER BY can't be a parameter
-//
-// Step 3: getListingById(req, res)
-//   - id is not a number -> 400, no such id -> 404
-//   - convert hostIsSuperhost 't' / 'f' to true / false
-//
-// Every controller: try/catch -> 500 { error } when the DAL throws.
-
 
 const listingsDal = require("../dal/listings.dal");
 
@@ -24,14 +9,14 @@ function isValidPrice(value) {
 
 // ===== Endpoint 1: all cards =====
 async function getListings(req, res) {
-  const { neighbourhood, roomType, minPrice, maxPrice } = req.query;
+  const { neighbourhood, roomType, minPrice, maxPrice, minRating } = req.query; // BONUS: הוספנו minRating
   const sort = req.query.sort ?? "price";
 
   let orderBy;
   if (sort === "price") {
-    orderBy = "price ASC";
+    orderBy = "price ASC, id ASC"; 
   } else if (sort === "rating") {
-    orderBy = "review_scores_rating DESC";
+    orderBy = "review_scores_rating DESC, id ASC";
   } else {
     return res.status(400).json({ error: "sort must be 'price' or 'rating'" });
   }
@@ -52,12 +37,21 @@ async function getListings(req, res) {
     return res.status(400).json({ error: "maxPrice must be a non-negative number" });
   }
 
+  // BONUS: minRating validation - must be a number between 0 and 5
+  if (minRating !== undefined) {
+    const ratingNum = Number(minRating);
+    if (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) {
+      return res.status(400).json({ error: "minRating must be a number between 0 and 5" });
+    }
+  }
+
   try {
     const rows = await listingsDal.getListings({
       neighbourhood,
       roomType,
       minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
       maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
+      minRating: minRating !== undefined ? Number(minRating) : undefined, 
       orderBy,
       limit,
     });
@@ -77,7 +71,6 @@ async function getListingById(req, res) {
   }
 
   try {
-
     const listing = await listingsDal.getListingById(Number(id));
 
     if (!listing) {
@@ -85,6 +78,17 @@ async function getListingById(req, res) {
     }
 
     listing.hostIsSuperhost = listing.hostIsSuperhost === "t";
+
+    // BONUS 1: עיבוד המתקנים (amenities) למערך נקי
+    if (listing.amenities && typeof listing.amenities === "string") {
+      listing.amenities = listing.amenities
+        .replace(/^{|}$/g, "") // remove the curly braces at the start and end
+        .split(",") // split into an array by commas
+        .map(item => item.replace(/"/g, "").trim()) // remove all quotation marks and trim whitespace
+        .filter(item => item.length > 0); // ensure no empty items are included
+    } else {
+      listing.amenities = [];
+    }
 
     res.json(listing);
   } catch (err) {

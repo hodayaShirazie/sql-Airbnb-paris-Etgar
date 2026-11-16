@@ -14,8 +14,12 @@
     "node": ">=20"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
-    "mssql": "^12.7.14"
-  }
+    "mssql": "11.0.1"
+  },
+  "overrides": {
+    "https-proxy-agent": "7.0.6",
+    "http-proxy-agent": "7.0.2"
+}
 }

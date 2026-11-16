@@ -46,9 +46,7 @@ export default async function* reporter(source) {
 
   if (total > 0 && failed === 0) {
     yield green(bold("\n✅ All tests passed - the task is APPROVED! You can move on to the next task.\n"));
-    yield green("✅ כל הטסטים עברו - המשימה אושרה! אפשר לעבור למשימה הבאה.\n");
   } else {
     yield red(bold(`\n❌ ${failed} test(s) still failing - the task is not approved yet. Keep going!\n`));
-    yield red("❌ עדיין יש טסטים שנכשלים - המשימה עוד לא אושרה. תמשיכו!\n");
   }
 }
